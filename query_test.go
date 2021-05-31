@@ -1036,6 +1036,45 @@ func TestSendKeys(t *testing.T) {
 	}
 }
 
+func TestInsertText(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		sel  string
+		by   QueryOption
+		keys string
+		exp  string
+	}{
+		{"1", `//*[@id="input1"]`, BySearch, "INSERT ", "INSERT some value"}, // 0
+		{"2", `#box4 > input:nth-child(1)`, ByQuery, "insert ", "insert some value"},
+		{"3", `#box4 > textarea`, ByQueryAll, "prefix " + kb.End + "\b\b SUFFIX\n", "prefix textar SUFFIX\n"},
+		{"4", `#textarea1`, ByID, "insert ", "insert textarea"},
+		{"5", `#textarea1`, ByID, kb.End + "\b\b\n\naoeu\n\nfoo\n\nbar\n\n", "textar\n\naoeu\n\nfoo\n\nbar\n\n"},
+		{"6", `#select1`, ByID, kb.ArrowDown + kb.ArrowDown, "three"}, // 5
+		{"7", `document.querySelector('#textarea1')`, ByJSPath, "insert ", "insert textarea"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, cancel := testAllocate(t, "visible.html")
+			defer cancel()
+
+			var val string
+			if err := Run(ctx,
+				InsertText(test.sel, test.keys, test.by),
+				Value(test.sel, &val, test.by),
+			); err != nil {
+				t.Fatalf("got error: %v", err)
+			}
+
+			if val != test.exp {
+				t.Errorf("expected value %s, got: %s", test.exp, val)
+			}
+		})
+	}
+}
+
 func TestScreenshot(t *testing.T) {
 	t.Parallel()
 

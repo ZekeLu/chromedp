@@ -13,6 +13,7 @@ import (
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/css"
 	"github.com/chromedp/cdproto/dom"
+	"github.com/chromedp/cdproto/input"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 )
@@ -1049,6 +1050,27 @@ func SetUploadFiles(sel interface{}, files []string, opts ...QueryOption) QueryA
 
 		return dom.SetFileInputFiles(files).WithNodeID(nodes[0].NodeID).Do(ctx)
 	}, opts...)
+}
+
+// InsertText is an element query action that wraps input.InsertText.
+// It will focus the first element node matching the selector first.
+func InsertText(sel interface{}, v string, opts ...QueryOption) QueryAction {
+	return QueryAfter(sel, func(ctx context.Context, execCtx runtime.ExecutionContextID, nodes ...*cdp.Node) error {
+		if len(nodes) < 1 {
+			return fmt.Errorf("selector %q did not return any nodes", sel)
+		}
+
+		// Some elements are not focusable, such as editable <div>.
+		// Sending dom.Focus() to such elements will result in this error:
+		// Element is not focusable (-32000)
+		// MouseClickNode
+		err := dom.Focus().WithNodeID(nodes[0].NodeID).Do(ctx)
+		if err != nil {
+			return err
+		}
+
+		return input.InsertText(v).Do(ctx)
+	}, append(opts, NodeVisible)...)
 }
 
 // Screenshot is an element query action that takes a screenshot of the first element
